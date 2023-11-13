@@ -1,20 +1,13 @@
-class A():
-    def __init__(self):
-        print('a init')
-        self.name = 'zhangs'
-        pass
+import numpy as np
 
-    def call(self):
-        print('a call')
-        print(self.name)
+A = np.array([[1, 2], [3, 4]])
 
-class B(A):
-    def __init__(self):
-        pass
+# 单位矩阵
+I = np.identity(2)
 
-    def sleep(self):
-        self.call()
+print(A.dot(I))
 
+print(I.dot(A))
 
-b = B()
-b.sleep()
+# A的逆矩阵
+inv_A = np.linalg.inv(A)
