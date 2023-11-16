@@ -1,4 +1,7 @@
 import base64
+import concurrent
+import threading
+import time
 from io import BytesIO
 
 from PIL import Image, ImageDraw
@@ -9,6 +12,10 @@ from layers.cross import CrossLayer
 from layers.dicom import DicomLayer
 from layers.dicom_info import DicomInfoLayer
 from layers.measure import MeasureLayer
+
+total_time = 0
+total_count = 0
+executor = concurrent.futures.ThreadPoolExecutor()
 
 
 class GenerateImg():
@@ -52,8 +59,12 @@ class GenerateImg():
 
     def blend_img(self, dicom_img, measure_img, img_cross=None):
         rgba_img = dicom_img.convert('RGBA')
-        blended_img = Image.alpha_composite(rgba_img, measure_img)
+        measure_img = measure_img.convert('RGBA')
+        blended_img = rgba_img
+        if measure_img is not None:
+            blended_img = Image.alpha_composite(rgba_img, measure_img)
         if img_cross is not None:
+            img_cross = img_cross.convert('RGBA')
             blended_img = Image.alpha_composite(blended_img, img_cross)
         drawer_blended = ImageDraw.Draw(blended_img)
         blended_img = blended_img.convert('RGB')
@@ -64,7 +75,8 @@ class GenerateImg():
         buffer = BytesIO()
         # 限制颜色数
         # img = img.quantize(colors=256)
-        img.save(buffer, format='JPEG', quality=70)
+        # img.save(buffer, format='JPEG', quality=60)
+        img.save(buffer, format='PNG', compress_level=8)
         encoded_data = base64.b64encode(buffer.getvalue()).decode('utf-8')
         return encoded_data
 
@@ -155,14 +167,43 @@ class GenerateImg():
         return self.get_mpr_img()
 
     def get_mpr_img(self):
+        global total_time
+        global total_count
         ans_dict = {}
+        start = time.time()
+        # 多线程的方式：
+        futures = []
         for view in ['sag', 'cor', 'ax']:
-            ans_dict[view] = self.get_blend_img(view)['imgs']
+            future = executor.submit(self.get_blend_img, view)
+            futures.append(future)
+            # ans_dict[view] = self.get_blend_img(view)['imgs']
+        results = [future.result() for future in concurrent.futures.as_completed(futures)]
+        for item in results:
+            ans_dict[item['type']] = item['imgs']
+        end = time.time()
+        total_time = end - start + total_time
+        total_count = total_count + 1
+        print(f'{total_count}的平均耗时为： {total_time / total_count}')
         return {
             "type": "mpr",
             "imgs": ans_dict,
             "center": self.base_info.center_posi
         }
+
+        # 单线程的方式：
+        # 如果加上desc信息，那么 1400次的平均耗时约为 0.025
+        # 如果去掉desc信息，那么 1400次的平均耗时约为 0.018
+        # for view in ['sag', 'cor', 'ax']:
+        #     ans_dict[view] = self.get_blend_img(view)['imgs']
+        # end = time.time()
+        # total_time = end - start + total_time
+        # total_count = total_count + 1
+        # print(f'{total_count}的平均耗时为： {total_time / total_count}')
+        # return {
+        #     "type": "mpr",
+        #     "imgs": ans_dict,
+        #     "center": self.base_info.center_posi
+        # }
 
     def move_scroll_img(self, view_type, x, y):
         self.base_info.move_scroll_img(view_type, x, y)
@@ -177,3 +218,10 @@ class GenerateImg():
         except Exception as e:
             print(e)
             return False
+
+    def change_color_space(self, view_type, pseudo_color_type):
+        self.base_info.change_color_space(pseudo_color_type)
+        if view_type == 'preview':
+            return self.get_blend_img(view_type)
+        else:
+            return self.get_mpr_img()

@@ -35,11 +35,9 @@ class CrossLayer:
             sag_current = self.base_info.get_current_slice_index('sag')
             cor_current = self.base_info.get_current_slice_index('cor')
             ax_current = self.base_info.get_current_slice_index('ax')
-
             sag_total = self.base_info.total['sag']
             cor_total = self.base_info.total['cor']
             ax_total = self.base_info.total['ax']
-
             four_corner = self.base_info.get_four_corner_position(view_type,'transformed')
             p0 = four_corner[0]
             p1 = four_corner[1]

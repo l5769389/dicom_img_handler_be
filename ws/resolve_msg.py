@@ -1,6 +1,7 @@
 import json
 import time
 
+from config.constant import PSEUDO_COLOR_TYPE
 from layers.index import GenerateImg
 
 
@@ -58,21 +59,22 @@ class HandleMsg(GenerateImg):
                 self.resize(view_type)
             elif op_type == 'mouseover':
                 view_type = self.data['type']
-                self.calc_current_posi(view_type)
+                # self.calc_current_posi(view_type)
             elif op_type == 'play':
                 self.play()
-            elif op_type == 'hor flip':
-                self.hor_flip()
-            elif op_type == 'ver flip':
-                self.ver_flip()
-            elif op_type == 'counterClockwise90':
-                self.rotate(90)
-            elif op_type == 'clockwise90':
-                self.rotate(-90)
-            elif op_type == 'bw':
-                self.pseudo_color(view_type, 'bw')
-            elif op_type == 'rainbow':
-                self.pseudo_color(view_type, 'rainbow')
+            elif op_type == 'rotate':
+                sub_op_type = self.data['subOpType']
+                if sub_op_type == 'hor flip':
+                    self.hor_flip()
+                elif sub_op_type == 'ver flip':
+                    self.ver_flip()
+                elif sub_op_type == 'counterClockwise90':
+                    self.rotate(90)
+                elif sub_op_type == 'clockwise90':
+                    self.rotate(-90)
+            elif op_type == 'pseudo':
+                sub_op_type = self.data['subOpType']
+                self.pseudo_color(view_type, sub_op_type)
             elif op_type == 'get_3d':
                 self.get_3d()
 

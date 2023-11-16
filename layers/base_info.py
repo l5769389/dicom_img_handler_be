@@ -5,6 +5,7 @@ import os
 
 import numpy as np
 
+from config.constant import PSEUDO_COLOR_TYPE
 from helper.resolve_dicom_path import ResolvePath
 
 
@@ -40,6 +41,7 @@ class BaseInfo:
         self.coordinate_direction = {}
         # 记录了在每一张图片中真正影像部分的四个拐点的坐标
         self.corner_info = {}
+        self.pseudo_color_type = PSEUDO_COLOR_TYPE.BW
         self.dicom_img_direction = {
             "init": None,
             "transformed": None
@@ -529,3 +531,6 @@ class BaseInfo:
             want_slice_index_y = round(ax_current_index + y / total_y * ax_total)
             actual_slice_index_y = np.clip(want_slice_index_y, 0, ax_total)
             self.set_latest('ax', actual_slice_index_y)
+
+    def change_color_space(self, pseudo_color_type):
+        self.pseudo_color_type = pseudo_color_type

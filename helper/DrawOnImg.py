@@ -2,6 +2,7 @@ from PIL import ImageFont
 
 # text_color = (255, 255, 255)
 text_color = (255, 255, 255)
+red_text_color = (255, 0, 0)
 cross_ball_radius = 10
 # bgr
 r_color = (255, 0, 0)
@@ -35,7 +36,8 @@ class Draw:
         if content is None:
             return
         font = font_4_angle if type == '4angle' else font_draw
-        drawer.text(posi, content, font=font, fill=text_color)
+        fill_color = red_text_color if type == '4angle' else text_color
+        drawer.text(posi, content, font=font, fill=fill_color)
 
     @staticmethod
     def draw_cross_line(drawer, center, view_type, w, h):

@@ -4,13 +4,17 @@ import cv2
 import numpy as np
 from PIL import Image
 
+from helper.pseudo_helper import PseudoHelper
 
-class DicomLayer():
+
+class DicomLayer(PseudoHelper):
     def __init__(self, base_info, view_type):
+        super().__init__()
         self.base_info = base_info
         self.spacing = None
         self.base_info = base_info
         self.view_type = view_type
+        self.cache_img = {}
         self.transfer = {
             'offset_x': 0,
             'offset_y': 0,
@@ -20,15 +24,33 @@ class DicomLayer():
         }
 
     def get_dicom_img(self):
-        pixel_array = self.base_info.get_recent_pixel_array(self.view_type)
-        resized_pixel_array = self.resize_to_fit_spacing(pixel_array)
-        img_hu_arr = self.pixel_to_hu_arr(resized_pixel_array)
-        full_arr = self.add_bg_and_img(img_hu_arr)
-        self.check_need_update_ct_arr(full_arr)
-        clipped_full_arr = self.clip_data(full_arr)
-        gray_img_arr = self.hu_to_gray(clipped_full_arr)
-        rgb_img = self.full_img_to_base64(gray_img_arr)
+        if self.check_cache_dicom_exist():
+            print('cache')
+            rgb_img = self.get_cache_dicom_img()
+        else:
+            print('no cache')
+            pixel_array = self.base_info.get_recent_pixel_array(self.view_type)
+            resized_pixel_array = self.resize_to_fit_spacing(pixel_array)
+            img_hu_arr = self.pixel_to_hu_arr(resized_pixel_array)
+            self.check_need_update_ct_arr(img_hu_arr)
+            clipped_img_arr = self.clip_data(img_hu_arr)
+            full_arr = self.add_bg_and_img(clipped_img_arr)
+            colored_img_arr = self.change_color_space(full_arr)
+            rgb_img = self.full_img_to_base64(colored_img_arr)
+            self.set_cache_dicom_img(rgb_img)
         return self.transfer_img(rgb_img)
+
+    def set_cache_dicom_img(self, rbg_img):
+        current_index = self.base_info.get_current_slice_index(self.view_type)
+        self.cache_img[current_index] = rbg_img
+
+    def get_cache_dicom_img(self):
+        current_index = self.base_info.get_current_slice_index(self.view_type)
+        return self.cache_img[current_index]
+
+    def check_cache_dicom_exist(self):
+        current_index = self.base_info.get_current_slice_index(self.view_type)
+        return current_index in self.cache_img.keys()
 
     def check_need_update_ct_arr(self, full_arr):
         update_dict = {
@@ -57,7 +79,6 @@ class DicomLayer():
 
     def full_img_to_base64(self, full_arr):
         encode_img = self.rgb_to_base64(full_arr)
-        encode_img = encode_img.convert('RGB')
         return encode_img
 
     def rgb_to_base64(self, full_arr_3ch):
@@ -87,9 +108,13 @@ class DicomLayer():
 
     def add_bg_and_img(self, img_arr):
         img_arr = self.scale_img_if_need(img_arr)
-        rows, cols = img_arr.shape
+        rows, cols = img_arr.shape[:2]
         target_cols, target_rows = self.get_bg_size()
-        bg = np.full((target_rows, target_cols), 0)
+        img_min = np.min(img_arr)
+        if img_arr.ndim == 2:
+            bg = np.full((target_rows, target_cols), img_min)
+        else:
+            bg = np.full((target_rows, target_cols, 3), img_min)
         delta_rows = max((target_rows - rows) // 2, 0)
         delta_cols = max((target_cols - cols) // 2, 0)
         four_corner = [(delta_cols, delta_rows), (delta_cols + cols, delta_rows),
@@ -103,7 +128,10 @@ class DicomLayer():
         end_row = (delta_rows + rows)
         start_col = delta_cols
         end_col = delta_cols + cols
-        bg[start_row: end_row, start_col: end_col] = img_arr
+        if img_arr.ndim == 2:
+            bg[start_row: end_row, start_col: end_col] = img_arr
+        else:
+            bg[start_row: end_row, start_col: end_col, :] = img_arr
         return bg
 
     def update_transfer(self, new_dict):
@@ -117,7 +145,7 @@ class DicomLayer():
 
     def scale_img_if_need(self, gray_arr):
         target_w, target_h = self.get_bg_size()
-        h, w = gray_arr.shape
+        h, w = gray_arr.shape[:2]
         aspect_ratio = min(target_w / w, target_h / h)
         preset_resized_h = int(h * aspect_ratio)
         preset_resized_w = int(w * aspect_ratio)
@@ -150,18 +178,12 @@ class DicomLayer():
             view = 'mpr'
         return view
 
-    def hu_to_gray(self, adjusted_pixel_array):
-        h, w = adjusted_pixel_array.shape
-        # 映射到 0-255区间
-        min = np.min(adjusted_pixel_array)
-        max = np.max(adjusted_pixel_array)
-        if abs(max - min) != 0:
-            to_gray_array_float = (adjusted_pixel_array - min) / (max - min) * 255
-            to_gray_array_int = np.round(to_gray_array_float).astype(np.int16)
-            # 将像素数据转换为图像
-            return to_gray_array_int
-        else:
-            return np.zeros((h, w), np.int16)
+    def change_color_space(self, arr):
+        normalization_arr = arr / arr.max()
+        cmap = self.get_cmap(self.base_info.pseudo_color_type)
+        cmap_arr = cmap(normalization_arr)
+        changed_arr = (cmap_arr * 255)[:, :, :3].astype(np.uint8)
+        return changed_arr
 
     def transfer_ct_arr(self, view_type):
         self.transfer_ct_value_arr(view_type)
