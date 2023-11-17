@@ -57,7 +57,23 @@ class DicomInfoLayer():
                         "Im": f'{current}/ {total}'
                     }
                 ],
-                # 倒序
+                "tm": [
+                    {
+                        "direction": f'{tm_direction}',
+                    }
+                ],
+                "rt": [],
+                "lm": [
+                    {
+                        "direction": f'{lm_direction}',
+                    }
+                ],
+                "rm": [
+                    {
+                        "direction": f'{rm_direction}',
+                    }
+                ],
+
                 "lb": [
                     {
                         "W": self.base_info.ww_wl[view_type]['ww'],
@@ -71,34 +87,18 @@ class DicomInfoLayer():
                         "mA": f'{mA}',
                     },
                 ],
-                "tm": [
-                    {
-                        "": f'{tm_direction}',
-                    }
-                ],
-                "rm": [
-                    {
-                        "": f'{rm_direction}',
-                    }
-                ],
                 "bm": [
                     {
-                        "": f'{bm_direction}',
+                        "direction": f'{bm_direction}',
                     }
                 ],
-                "lm": [
-                    {
-                        "": f'{lm_direction}',
-                    }
-                ],
-                # 倒序
                 "rb": [
                     {
                         "x": x,
                         "y": y,
                         "value": value
                     },
-                ]
+                ],
             }
         elif view_type == 'sag' or view_type == 'cor' or view_type == 'ax':
             return {
@@ -107,12 +107,19 @@ class DicomInfoLayer():
                         "Im": f'{current}/ {total}'
                     }
                 ],
+                "tm": [],
+                "rt": [],
+
+                "lm": [],
+                "rm": [],
+
                 "lb": [
                     {
                         "W": self.base_info.ww_wl['mpr']['ww'],
                         'L': self.base_info.ww_wl['mpr']['wl']
                     }
                 ],
+                "bm": [],
                 "rb": [
                     {
                         "x": x,

@@ -1,9 +1,9 @@
 import math
+import time
 
 import cv2
 import numpy as np
 from PIL import Image
-
 from helper.pseudo_helper import PseudoHelper
 
 
@@ -14,7 +14,8 @@ class DicomLayer(PseudoHelper):
         self.spacing = None
         self.base_info = base_info
         self.view_type = view_type
-        self.cache_img = {}
+        self.cache_full_arr = {}
+        self.cache_rgb_img = {}
         self.transfer = {
             'offset_x': 0,
             'offset_y': 0,
@@ -24,33 +25,64 @@ class DicomLayer(PseudoHelper):
         }
 
     def get_dicom_img(self):
-        if self.check_cache_dicom_exist():
-            print('cache')
-            rgb_img = self.get_cache_dicom_img()
+        # 判断分为：
+        # 1. 是否有当前张数、当前伪彩类型的 缓存 如果有直接返回
+        # 2. 如果没有当前张数的图片，则走初次加载的流程并缓存
+        # 3. 如果有当前张数的图片，但是没有当前类型的伪彩。那么从缓存的数据中重新生成一次伪彩。并缓存。
+        if self.check_rgb_img_exist():
+            rgb_img = self.get_cache_rgb_img()
         else:
-            print('no cache')
-            pixel_array = self.base_info.get_recent_pixel_array(self.view_type)
-            resized_pixel_array = self.resize_to_fit_spacing(pixel_array)
-            img_hu_arr = self.pixel_to_hu_arr(resized_pixel_array)
-            self.check_need_update_ct_arr(img_hu_arr)
-            clipped_img_arr = self.clip_data(img_hu_arr)
-            full_arr = self.add_bg_and_img(clipped_img_arr)
-            colored_img_arr = self.change_color_space(full_arr)
-            rgb_img = self.full_img_to_base64(colored_img_arr)
-            self.set_cache_dicom_img(rgb_img)
+            if self.check_full_arr_exist():
+                full_arr = self.get_cache_full_arr()
+                colored_img_arr = self.change_color_space(full_arr)
+                rgb_img = self.full_img_to_base64(colored_img_arr)
+            else:
+                full_arr = self.get_full_arr()
+                colored_img_arr = self.change_color_space(full_arr)
+                rgb_img = self.full_img_to_base64(colored_img_arr)
+            self.set_cache_full_arr(full_arr)
+        self.set_cache_rgb_img(rgb_img)
         return self.transfer_img(rgb_img)
 
-    def set_cache_dicom_img(self, rbg_img):
-        current_index = self.base_info.get_current_slice_index(self.view_type)
-        self.cache_img[current_index] = rbg_img
+    def get_full_arr(self):
+        pixel_array = self.base_info.get_recent_pixel_array(self.view_type)
+        resized_pixel_array = self.resize_to_fit_spacing(pixel_array)
+        img_hu_arr = self.pixel_to_hu_arr(resized_pixel_array)
+        self.check_need_update_ct_arr(img_hu_arr)
+        clipped_img_arr = self.clip_data(img_hu_arr)
+        full_arr = self.add_bg_and_img(clipped_img_arr)
+        return full_arr
 
-    def get_cache_dicom_img(self):
+    def set_cache_rgb_img(self, rbg_img):
         current_index = self.base_info.get_current_slice_index(self.view_type)
-        return self.cache_img[current_index]
+        self.cache_rgb_img.update({
+            current_index: {
+                self.base_info.pseudo_color_type: rbg_img
+            }
+        })
 
-    def check_cache_dicom_exist(self):
+    def set_cache_full_arr(self, full_arr):
         current_index = self.base_info.get_current_slice_index(self.view_type)
-        return current_index in self.cache_img.keys()
+        self.cache_full_arr.update({
+            current_index: full_arr
+        })
+
+    def get_cache_full_arr(self):
+        current_index = self.base_info.get_current_slice_index(self.view_type)
+        return self.cache_full_arr[current_index]
+
+    def get_cache_rgb_img(self):
+        current_index = self.base_info.get_current_slice_index(self.view_type)
+        return self.cache_rgb_img[current_index][self.base_info.pseudo_color_type]
+
+    def check_rgb_img_exist(self):
+        current_index = self.base_info.get_current_slice_index(self.view_type)
+        return current_index in self.cache_rgb_img.keys() and self.base_info.pseudo_color_type in self.cache_rgb_img[
+            current_index].keys()
+
+    def check_full_arr_exist(self):
+        current_index = self.base_info.get_current_slice_index(self.view_type)
+        return current_index in self.cache_full_arr.keys()
 
     def check_need_update_ct_arr(self, full_arr):
         update_dict = {

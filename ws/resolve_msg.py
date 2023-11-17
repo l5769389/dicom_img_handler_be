@@ -59,7 +59,7 @@ class HandleMsg(GenerateImg):
                 self.resize(view_type)
             elif op_type == 'mouseover':
                 view_type = self.data['type']
-                # self.calc_current_posi(view_type)
+                self.calc_current_posi(view_type)
             elif op_type == 'play':
                 self.play()
             elif op_type == 'rotate':

@@ -25,10 +25,10 @@ class MeasureLayer(draw_helper):
         # 正在绘制中的
         self.measuring_info = self.get_init_measuring_info()
         # 绘图层采用的坐标系.默认情况下是：右向是x的正方向， 下向是y轴的正方向。
-        self.coordinate_direction = {
-            "x": 1,
-            "y": 2
-        }
+        # self.coordinate_direction = {
+        #     "x": 1,
+        #     "y": 2
+        # }
         self.base_info = base_info
         self.view_type = view_type
 
@@ -37,8 +37,8 @@ class MeasureLayer(draw_helper):
         self.update_measure_img_after_transfer()
 
     # dicom影像发生了视图的翻转后。调转绘制测量图层的坐标系。
-    def update_coordinate(self, new_coordinate):
-        self.coordinate_direction = new_coordinate
+    # def update_coordinate(self, new_coordinate):
+    #     self.coordinate_direction = new_coordinate
 
     def update_measure_img_after_transfer(self):
         current_slice = self.get_current_slice_by_view_type()
@@ -109,25 +109,27 @@ class MeasureLayer(draw_helper):
         sign_x = 1
         sign_y = 1
         x_y_switch = False
-        if self.coordinate_direction['x'] == 0:
+        coord = self.base_info.coordinate_direction[self.view_type]
+        print(coord)
+        if coord['x'] == 0:
             x_y_switch = True
             sign_x = -1
-        elif self.coordinate_direction['x'] == 1:
+        elif coord['x'] == 1:
             sign_x = 1
-        elif self.coordinate_direction['x'] == 2:
+        elif coord['x'] == 2:
             x_y_switch = True
             sign_x = 1
-        elif self.coordinate_direction['x'] == 3:
+        elif coord['x'] == 3:
             sign_x = -1
 
-        if self.coordinate_direction['y'] == 0:
+        if coord['y'] == 0:
             sign_y = -1
-        elif self.coordinate_direction['y'] == 1:
+        elif coord['y'] == 1:
             x_y_switch = True
             sign_y = 1
-        elif self.coordinate_direction['y'] == 2:
+        elif coord['y'] == 2:
             sign_y = 1
-        elif self.coordinate_direction['y'] == 3:
+        elif coord['y'] == 3:
             x_y_switch = True
             sign_y = -1
         return x_y_switch, sign_x, sign_y

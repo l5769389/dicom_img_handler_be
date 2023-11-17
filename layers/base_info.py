@@ -232,6 +232,7 @@ class BaseInfo:
             coordination['x'] = self.rotate_coordinate(x_direction, -1)
             coordination['y'] = self.rotate_coordinate(y_direction, -1)
 
+    # 更新 APLR等视图的方向。
     def update_img_direction(self, transfer_type):
         direction_x = self.dicom_img_direction['transformed']['x']
         direction_y = self.dicom_img_direction['transformed']['y']

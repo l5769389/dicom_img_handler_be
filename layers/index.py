@@ -44,12 +44,13 @@ class GenerateImg():
         cross_img = None
         if view_type != 'preview':
             cross_img = self.cross_layer_dict[view_type].get_drew_img()
-        final_img, _ = self.blend_img(dicom_img, measure_img, cross_img)
-        self.draw_desc(final_img, view_type)
+        final_img = self.blend_img(dicom_img, measure_img, cross_img)
+        desc = self.dicom_info_dict[view_type].get_img_desc_info()
         encode_img = self.img_to_base64(final_img)
         return {
             "type": view_type,
-            "imgs": encode_img
+            "imgs": encode_img,
+            "desc": desc
         }
 
     def draw_desc(self, img, view_type):
@@ -64,19 +65,22 @@ class GenerateImg():
         if measure_img is not None:
             blended_img = Image.alpha_composite(rgba_img, measure_img)
         if img_cross is not None:
+            start = time.time()
             img_cross = img_cross.convert('RGBA')
             blended_img = Image.alpha_composite(blended_img, img_cross)
-        drawer_blended = ImageDraw.Draw(blended_img)
+            end = time.time()
+            print(f'{end - start}')
+        # drawer_blended = ImageDraw.Draw(blended_img)
         blended_img = blended_img.convert('RGB')
-        return blended_img, drawer_blended
+        return blended_img
 
     def img_to_base64(self, img):
         # 使用cv压缩，这种方式耗时很多，所以采用转为Image的方式。
         buffer = BytesIO()
         # 限制颜色数
         # img = img.quantize(colors=256)
-        # img.save(buffer, format='JPEG', quality=60)
-        img.save(buffer, format='PNG', compress_level=8)
+        # img.save(buffer, format='JPEG', quality=80)
+        img.save(buffer, format='PNG')
         encoded_data = base64.b64encode(buffer.getvalue()).decode('utf-8')
         return encoded_data
 
@@ -169,41 +173,23 @@ class GenerateImg():
     def get_mpr_img(self):
         global total_time
         global total_count
-        ans_dict = {}
-        start = time.time()
+        imgs_dict = {}
+        img_desc_dict = {}
         # 多线程的方式：
         futures = []
         for view in ['sag', 'cor', 'ax']:
             future = executor.submit(self.get_blend_img, view)
             futures.append(future)
-            # ans_dict[view] = self.get_blend_img(view)['imgs']
         results = [future.result() for future in concurrent.futures.as_completed(futures)]
         for item in results:
-            ans_dict[item['type']] = item['imgs']
-        end = time.time()
-        total_time = end - start + total_time
-        total_count = total_count + 1
-        print(f'{total_count}的平均耗时为： {total_time / total_count}')
+            imgs_dict[item['type']] = item['imgs']
+            img_desc_dict[item['type']] = item['desc']
         return {
             "type": "mpr",
-            "imgs": ans_dict,
+            "imgs": imgs_dict,
+            "desc": img_desc_dict,
             "center": self.base_info.center_posi
         }
-
-        # 单线程的方式：
-        # 如果加上desc信息，那么 1400次的平均耗时约为 0.025
-        # 如果去掉desc信息，那么 1400次的平均耗时约为 0.018
-        # for view in ['sag', 'cor', 'ax']:
-        #     ans_dict[view] = self.get_blend_img(view)['imgs']
-        # end = time.time()
-        # total_time = end - start + total_time
-        # total_count = total_count + 1
-        # print(f'{total_count}的平均耗时为： {total_time / total_count}')
-        # return {
-        #     "type": "mpr",
-        #     "imgs": ans_dict,
-        #     "center": self.base_info.center_posi
-        # }
 
     def move_scroll_img(self, view_type, x, y):
         self.base_info.move_scroll_img(view_type, x, y)
