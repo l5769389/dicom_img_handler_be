@@ -1,7 +1,5 @@
 from PIL import Image, ImageDraw
-
 from helper.DrawOnImg import Draw
-
 
 class CrossLayer:
     def __init__(self, base_info, view_type):

@@ -65,12 +65,8 @@ class GenerateImg():
         if measure_img is not None:
             blended_img = Image.alpha_composite(rgba_img, measure_img)
         if img_cross is not None:
-            start = time.time()
             img_cross = img_cross.convert('RGBA')
             blended_img = Image.alpha_composite(blended_img, img_cross)
-            end = time.time()
-            print(f'{end - start}')
-        # drawer_blended = ImageDraw.Draw(blended_img)
         blended_img = blended_img.convert('RGB')
         return blended_img
 
@@ -79,8 +75,8 @@ class GenerateImg():
         buffer = BytesIO()
         # 限制颜色数
         # img = img.quantize(colors=256)
-        # img.save(buffer, format='JPEG', quality=80)
-        img.save(buffer, format='PNG')
+        img.save(buffer, format='JPEG', quality=70)
+        # img.save(buffer, format='PNG')
         encoded_data = base64.b64encode(buffer.getvalue()).decode('utf-8')
         return encoded_data
 
@@ -103,23 +99,29 @@ class GenerateImg():
 
     def pan_img(self, view_type, x, y):
         update_transfer_dict = self.base_info.pan_img(view_type, x, y)
-        return self.update_other_layers(view_type, update_transfer_dict)
+        self.update_other_layers(view_type, update_transfer_dict)
+        return self.get_current_img_dict(view_type)
 
     def zoom_img(self, view_type, zoom):
         update_transfer_dict = self.base_info.zoom_img(view_type, zoom)
-        return self.update_other_layers(view_type, update_transfer_dict)
+        self.update_other_layers(view_type, update_transfer_dict)
+        return self.get_current_img_dict(view_type)
 
     def flip_img(self, view_type, direction):
         update_transfer_dict = self.base_info.flip_img(view_type, direction)
-        return self.update_other_layers(view_type, update_transfer_dict)
+        self.update_other_layers(view_type, update_transfer_dict)
+        return self.get_current_img_dict(view_type)
 
     def rotate_img(self, view_type, angle):
         update_transfer_dict = self.base_info.rotate_img(view_type, angle)
-        return self.update_other_layers(view_type, update_transfer_dict)
+        self.update_other_layers(view_type, update_transfer_dict)
+        return self.get_current_img_dict(view_type)
 
     def update_other_layers(self, view_type, update_dict):
         self.measure_layer_dict[view_type].update_transfer(update_dict)
         self.dicom_layer_dict[view_type].update_transfer(update_dict)
+
+    def get_current_img_dict(self, view_type):
         if view_type == 'preview':
             return self.get_blend_img(view_type)
         else:
@@ -127,27 +129,27 @@ class GenerateImg():
 
     def scroll_img(self, view_type, scroll):
         self.base_info.scroll_img(view_type, scroll)
-        return self.get_blend_img(view_type)
+        return self.get_current_img_dict(view_type)
 
     def clear_choosing_img(self, view_type):
         self.measure_layer_dict[view_type].reset_drawing_points()
-        return self.get_blend_img(view_type)
+        return self.get_current_img_dict(view_type)
 
     def clear_all_draw_img(self, view_type):
         self.measure_layer_dict[view_type].reset_measures()
-        return self.get_blend_img(view_type)
+        return self.get_current_img_dict(view_type)
 
     def clear_all_rotate(self, view_type):
         self.base_info.clear_all_rotate(view_type)
-        return self.get_blend_img(view_type)
+        return self.get_current_img_dict(view_type)
 
     def reset_img(self, view_type):
         self.base_info.reset(view_type)
-        return self.get_blend_img(view_type)
+        return self.get_current_img_dict(view_type)
 
     def loop_play(self, view_type):
         self.base_info.loop_play(view_type)
-        return self.get_blend_img(view_type)
+        return self.get_current_img_dict(view_type)
 
     def resize_single_view(self, view_type, dict):
         self.base_info.set_view_aspect(view_type, dict)
@@ -193,7 +195,7 @@ class GenerateImg():
 
     def move_scroll_img(self, view_type, x, y):
         self.base_info.move_scroll_img(view_type, x, y)
-        return self.get_mpr_img()
+        return self.get_current_img_dict(view_type)
 
     def get_3d_vti(self):
         if self.base_info.parent_path == '':
@@ -207,7 +209,4 @@ class GenerateImg():
 
     def change_color_space(self, view_type, pseudo_color_type):
         self.base_info.change_color_space(pseudo_color_type)
-        if view_type == 'preview':
-            return self.get_blend_img(view_type)
-        else:
-            return self.get_mpr_img()
+        return self.get_current_img_dict(view_type)
